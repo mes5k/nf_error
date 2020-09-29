@@ -1,9 +1,6 @@
 nextflow.preview.dsl=2
 
 process solid {
-    // Boilerplate and no way to pass input values in.
-    afterScript 'source after.sh solid'
-
     input:
     val(x)
 
@@ -12,31 +9,26 @@ process solid {
     // We need this even for a process that *should* always succeed, because
     // we need to account for unknown errors.
     path 'solid.txt', emit: values optional true
-    path 'error.json',  emit: errors optional true
+    path 'errors.json',  emit: errors optional true
 
     script:
     """
-    echo ${x} > solid.txt
+    wrap_err input_number ${x} -- echo ${x} > solid.txt
     """
 }
 
 process flaky {
-    // Boilerplate and no way to pass input values in.
-    afterScript 'source after.sh flaky'
-
     input:
     path(x)
 
     output:
     // Needing "optional true" is boilerplate, as is the entire errors channel.
-    path "*.txt", emit: data optional true
-    path 'error.json', emit: errors optional true
+    path "*.dat", emit: data optional true
+    path 'errors.json', emit: errors optional true
 
     script:
     """
-    N=\$(cat ${x})
-    Y=\$(mod3.py \$N)
-    echo \$Y > flaky.\$N.txt
+    wrap_err description_of_input_channel ${x} --  mod3.py ${x}
     """
 }
 
@@ -76,8 +68,8 @@ workflow {
 
     flaky(solid.out.values)
 
-    errors = solid.out.errors | mix(flaky.out.errors) | collect
+    errors = solid.out.errors | mix(flaky.out.errors) | view | collect
 
-    gen_report(flaky.out.data.collect(), errors)
+    gen_report(flaky.out.data.view().collect(), errors)
 
 }
