@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import sys
+import subprocess
+import json
+import itertools
+
+# Helper function to create a dict from the list of input names and values.
+def grouper(iterable):
+    args = [iter(iterable)] * 2
+    return dict(itertools.zip_longest(*args, fillvalue="uneven number of values!!!"))
+
+# Split the input args on '--'
+# Before are the input names and values.
+# After is the command to execute.
+index=sys.argv.index('--')
+inputs = sys.argv[1:index]
+cmd = sys.argv[index+1:]
+
+# Execute the command, capturing stdout and stderr.
+ret = subprocess.run(" ".join(cmd), capture_output=True, text=True, shell=True)
+
+# Print stdout and stderr for Nextflow.
+if ret.stderr:
+    print(ret.stderr, file=sys.stderr, end='')
+if ret.stdout:
+    print(ret.stdout, end='')
+
+# On error, write the errors.json file.
+if ret.returncode != 0:
+    data = {}
+    data['inputs'] = grouper(inputs)
+    data['stderr'] = str(ret.stderr) if ret.stderr else 'none'
+    data['stdout'] = str(ret.stdout) if ret.stdout else 'none'
+    data['command'] = str(ret.args) if ret.args else 'none'
+    with open('errors.json', 'w') as eout:
+        json.dump(data,eout)
